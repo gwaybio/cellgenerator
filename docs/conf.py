@@ -28,7 +28,7 @@ extensions = [
     "sphinx_autodoc_typehints",  # render type hints in the signature & params
     "sphinx_copybutton",  # copy button on every code block
     "sphinx_design",  # tabs, cards, grids
-    "myst_parser",  # write docs in Markdown
+    "myst_nb",  # MyST Markdown + Jupyter notebook rendering (replaces myst_parser)
 ]
 
 # ---------------------------------------------------------------------------
@@ -112,3 +112,11 @@ html_theme_options = {
 # copybutton: strip prompts from shell / Python REPL examples
 copybutton_prompt_text = r">>> |\.\.\. |\$ "
 copybutton_prompt_is_regexp = True
+
+# ---------------------------------------------------------------------------
+# myst-nb settings
+# ---------------------------------------------------------------------------
+
+# Use stored outputs from the committed notebook — never re-execute during build.
+# This means CI does not need CellProfiler or any kernel installed.
+nb_execution_mode = "off"

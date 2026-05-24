@@ -93,6 +93,13 @@ shapes, staining models, or noise types.
 ## Contents
 
 ```{toctree}
+:maxdepth: 1
+:caption: Tutorials
+
+tutorials/cellprofiler_features
+```
+
+```{toctree}
 :maxdepth: 2
 :caption: API Reference
 
