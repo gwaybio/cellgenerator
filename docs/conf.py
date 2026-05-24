@@ -25,6 +25,7 @@ extensions = [
     "sphinx.ext.napoleon",  # Google / NumPy docstring styles
     "sphinx.ext.viewcode",  # [source] links next to every object
     "sphinx.ext.intersphinx",  # cross-reference Python / NumPy / PIL docs
+    "sphinx.ext.mathjax",  # render LaTeX math in HTML via MathJax
     "sphinx_autodoc_typehints",  # render type hints in the signature & params
     "sphinx_copybutton",  # copy button on every code block
     "sphinx_design",  # tabs, cards, grids
@@ -39,6 +40,8 @@ myst_enable_extensions = [
     "colon_fence",  # ::: fences as an alternative to ```
     "deflist",  # definition lists
     "fieldlist",  # RST-style field lists inside Markdown
+    "dollarmath",  # $...$ inline and $$...$$ block LaTeX math
+    "amsmath",  # \begin{equation} … \end{equation} environments
 ]
 
 # ---------------------------------------------------------------------------
