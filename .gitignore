@@ -1,7 +1,6 @@
 # Dev
 env/
 sandbox/
-*.ipynb
 
 # Ruff
 .ruff_cache/
