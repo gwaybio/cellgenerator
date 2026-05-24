@@ -62,13 +62,13 @@ from cellgenerator.stain import ConstantStain, SpatialStain
 ASPECT_RATIOS: list[float] = [1.0, 1.5, 2.0, 3.0, 4.0]
 Y_RADII: list[int] = [60, 100, 150, 200]
 STAIN_CONFIGS: list[tuple[str, int]] = [
-    ("spatial",   5),
-    ("spatial",  20),
-    ("spatial",  60),
-    ("constant",  0),
+    ("spatial", 5),
+    ("spatial", 20),
+    ("spatial", 60),
+    ("constant", 0),
 ]
 N_SEEDS: int = 20
-ANGLES: list[int] = list(range(0, 360, 5))   # 72 angles
+ANGLES: list[int] = list(range(0, 360, 5))  # 72 angles
 RENDER_DIM: tuple[int, int] = (128, 128)
 INTERNAL_DIM: tuple[int, int] = (1000, 1000)
 BATCH_SIZE: int = 500
@@ -77,6 +77,7 @@ DEFAULT_OUT = Path(__file__).parent / "rotation_dataset.ome.parquet"
 # ---------------------------------------------------------------------------
 # Cell construction
 # ---------------------------------------------------------------------------
+
 
 def make_image(
     aspect_ratio: float,
@@ -118,6 +119,7 @@ def render(img: Image, angle: float) -> tuple[np.ndarray, np.ndarray]:
 # OME-Arrow helpers
 # ---------------------------------------------------------------------------
 
+
 def to_ome_dict(array_2d: np.ndarray) -> dict:
     """Convert a 2D numpy array to an OME-Arrow struct dict.
 
@@ -132,34 +134,41 @@ def to_ome_dict(array_2d: np.ndarray) -> dict:
 # ---------------------------------------------------------------------------
 
 _META_KEYS = frozenset(
-    ["cell_id", "angle_deg", "aspect_ratio", "y_radius",
-     "stain_type", "stain_corr", "seed", "image", "mask"]
+    [
+        "cell_id",
+        "angle_deg",
+        "aspect_ratio",
+        "y_radius",
+        "stain_type",
+        "stain_corr",
+        "seed",
+        "image",
+        "mask",
+    ]
 )
 
 
 def build_table(rows: list[dict]) -> pa.Table:
     """Convert a list of row dicts into a typed PyArrow Table."""
     image_col = pa.array([r["image"] for r in rows], type=OME_ARROW_STRUCT)
-    mask_col  = pa.array([r["mask"]  for r in rows], type=OME_ARROW_STRUCT)
+    mask_col = pa.array([r["mask"] for r in rows], type=OME_ARROW_STRUCT)
 
     arrays: dict[str, pa.Array] = {
-        "cell_id":      pa.array([r["cell_id"]      for r in rows], type=pa.int32()),
-        "angle_deg":    pa.array([r["angle_deg"]     for r in rows], type=pa.float32()),
-        "aspect_ratio": pa.array([r["aspect_ratio"]  for r in rows], type=pa.float32()),
-        "y_radius":     pa.array([r["y_radius"]      for r in rows], type=pa.int16()),
-        "stain_type":   pa.array([r["stain_type"]    for r in rows]),
-        "stain_corr":   pa.array([r["stain_corr"]    for r in rows], type=pa.float32()),
-        "seed":         pa.array([r["seed"]          for r in rows], type=pa.int16()),
-        "image":        image_col,
-        "mask":         mask_col,
+        "cell_id": pa.array([r["cell_id"] for r in rows], type=pa.int32()),
+        "angle_deg": pa.array([r["angle_deg"] for r in rows], type=pa.float32()),
+        "aspect_ratio": pa.array([r["aspect_ratio"] for r in rows], type=pa.float32()),
+        "y_radius": pa.array([r["y_radius"] for r in rows], type=pa.int16()),
+        "stain_type": pa.array([r["stain_type"] for r in rows]),
+        "stain_corr": pa.array([r["stain_corr"] for r in rows], type=pa.float32()),
+        "seed": pa.array([r["seed"] for r in rows], type=pa.int16()),
+        "image": image_col,
+        "mask": mask_col,
     }
 
     # Feature columns — float32 to save space
     feature_keys = [k for k in rows[0] if k not in _META_KEYS]
     for k in feature_keys:
-        arrays[k] = pa.array(
-            [r.get(k, float("nan")) for r in rows], type=pa.float32()
-        )
+        arrays[k] = pa.array([r.get(k, float("nan")) for r in rows], type=pa.float32())
 
     return pa.table(arrays)
 
@@ -168,13 +177,14 @@ def build_table(rows: list[dict]) -> pa.Table:
 # Main simulation loop
 # ---------------------------------------------------------------------------
 
+
 def run(
     out_path: Path,
     dry_run: bool = False,
 ) -> None:
     configs = list(itertools.product(ASPECT_RATIOS, Y_RADII, STAIN_CONFIGS))
-    n_cells = len(configs) * N_SEEDS          # 1,600
-    n_rows  = n_cells * len(ANGLES)           # 115,200
+    n_cells = len(configs) * N_SEEDS  # 1,600
+    n_rows = n_cells * len(ANGLES)  # 115,200
     max_rows = 10 if dry_run else n_rows
 
     print(f"Configs:  {len(configs):>6,}")
@@ -205,18 +215,20 @@ def run(
             pixels, labels = render(img, float(angle))
             features = _run_measurements(pixels, labels)
 
-            batch.append({
-                "cell_id":      cell_id,
-                "angle_deg":    float(angle),
-                "aspect_ratio": float(aspect_ratio),
-                "y_radius":     int(y_radius),
-                "stain_type":   stain_type,
-                "stain_corr":   float(stain_corr),
-                "seed":         int(seed),
-                "image":        to_ome_dict((pixels * 255).astype(np.uint8)),
-                "mask":         to_ome_dict(labels.astype(np.uint8)),
-                **features,
-            })
+            batch.append(
+                {
+                    "cell_id": cell_id,
+                    "angle_deg": float(angle),
+                    "aspect_ratio": float(aspect_ratio),
+                    "y_radius": int(y_radius),
+                    "stain_type": stain_type,
+                    "stain_corr": float(stain_corr),
+                    "seed": int(seed),
+                    "image": to_ome_dict((pixels * 255).astype(np.uint8)),
+                    "mask": to_ome_dict(labels.astype(np.uint8)),
+                    **features,
+                }
+            )
 
         # Flush batch when full or at the end of a cell's angles
         if len(batch) >= BATCH_SIZE or (dry_run and len(batch) > 0):
@@ -258,20 +270,28 @@ def run(
     if dry_run:
         rate = rows_written / elapsed
         est_h = (n_rows / rate) / 3600
-        print(f"\nFull-run estimate at {rate:.1f} rows/s: {est_h:.1f} h  ({n_rows:,} rows)")
+        print(
+            f"\nFull-run estimate at {rate:.1f} rows/s: "
+            f"{est_h:.1f} h  ({n_rows:,} rows)"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--out",
         type=Path,
         default=DEFAULT_OUT,
-        help="Output .ome.parquet path (default: analysis/rotation_dataset.ome.parquet)",
+        help=(
+            "Output .ome.parquet path (default: analysis/rotation_dataset.ome.parquet)"
+        ),
     )
     parser.add_argument(
         "--dry-run",

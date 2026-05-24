@@ -52,20 +52,53 @@ def _run_measurements(pixels: np.ndarray, labels: np.ndarray) -> dict[str, float
                 pass
 
     runners = [
-        ("sizeshape",   lambda: measureobjectsizeshape.get_sizeshape(masks=labels, pixels=pixels)),
-        ("zernike",     lambda: measureobjectsizeshape.get_zernike(masks=labels, pixels=pixels)),
-        ("feret",       lambda: measureobjectsizeshape.get_feret(masks=labels, pixels=pixels)),
-        ("intensity",   lambda: measureobjectintensity.get_intensity(masks=labels, pixels=pixels)),
-        ("granularity", lambda: measuregranularity.get_granularity(mask=labels, pixels=pixels)),
-        ("radial_dist", lambda: measureobjectintensitydistribution.get_radial_distribution(labels=labels, pixels=pixels)),
-        ("radial_zern", lambda: measureobjectintensitydistribution.get_radial_zernikes(labels=labels, pixels=pixels)),
+        (
+            "sizeshape",
+            lambda: measureobjectsizeshape.get_sizeshape(masks=labels, pixels=pixels),
+        ),
+        (
+            "zernike",
+            lambda: measureobjectsizeshape.get_zernike(masks=labels, pixels=pixels),
+        ),
+        (
+            "feret",
+            lambda: measureobjectsizeshape.get_feret(masks=labels, pixels=pixels),
+        ),
+        (
+            "intensity",
+            lambda: measureobjectintensity.get_intensity(masks=labels, pixels=pixels),
+        ),
+        (
+            "granularity",
+            lambda: measuregranularity.get_granularity(mask=labels, pixels=pixels),
+        ),
+        (
+            "radial_dist",
+            lambda: measureobjectintensitydistribution.get_radial_distribution(
+                labels=labels, pixels=pixels
+            ),
+        ),
+        (
+            "radial_zern",
+            lambda: measureobjectintensitydistribution.get_radial_zernikes(
+                labels=labels, pixels=pixels
+            ),
+        ),
     ]
     # Texture at three scales (matching CellProfiler defaults)
     for scale in _TEXTURE_SCALES:
-        runners.append((
-            f"texture_scale{scale}",
-            (lambda s: lambda: measuretexture.get_texture(masks=labels, pixels=pixels, scale=s))(scale),
-        ))
+        runners.append(
+            (
+                f"texture_scale{scale}",
+                (
+                    lambda s: (
+                        lambda: measuretexture.get_texture(
+                            masks=labels, pixels=pixels, scale=s
+                        )
+                    )
+                )(scale),
+            )
+        )
 
     for name, fn in runners:
         try:

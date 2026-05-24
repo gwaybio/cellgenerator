@@ -62,6 +62,9 @@ packages = ["cellgenerator"]
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = [
+    "docs/tutorials",  # symlinks to analysis/ and notebooks/ — checked there instead
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "W"]
