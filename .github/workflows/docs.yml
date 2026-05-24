@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+# Required for the deploy-pages action
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment at a time; cancel in-progress runs on new push
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build Sphinx docs
@@ -27,10 +38,23 @@ jobs:
         # nb_execution_mode=off means CI never needs a Jupyter kernel or CellProfiler.
         run: cd docs && uv run sphinx-build -W --keep-going . _build/html
 
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
-        if: github.event_name == 'push'
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: docs-html
           path: docs/_build/html
-          retention-days: 7
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    # Only deploy on pushes to main, not on PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

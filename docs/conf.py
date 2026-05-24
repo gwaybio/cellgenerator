@@ -77,6 +77,7 @@ intersphinx_mapping = {
 html_theme = "furo"
 html_title = "cellgenerator"
 html_static_path = ["_static"]
+html_baseurl = "https://gwaybio.github.io/cellgenerator/"
 
 html_theme_options = {
     "sidebar_hide_name": False,
