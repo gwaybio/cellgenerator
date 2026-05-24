@@ -97,6 +97,7 @@ shapes, staining models, or noise types.
 :caption: Tutorials
 
 tutorials/cellprofiler_features
+tutorials/rotation_sensitivity
 ```
 
 ```{toctree}
