@@ -1,104 +1,56 @@
-# CellProfiler environment setup
+# CellProfiler-compatible features
 
-cellgenerator extracts CellProfiler features by invoking a thin runner script
-inside a **dedicated conda environment** (`cg-cellprofiler`).  This keeps
-CellProfiler's dependency tree (which pins `docutils==0.15.2`) from conflicting
-with cellgenerator's own docs and dev dependencies.
+cellgenerator extracts CellProfiler-compatible morphological features using
+[**cp_measure**](https://github.com/afermg/cp_measure) — a pure-Python package
+that implements the same measurement algorithms as CellProfiler without requiring
+CellProfiler itself.
 
-You only need to do this setup once.
+`cp_measure` is listed as a regular dependency in `pyproject.toml` and installs
+automatically with cellgenerator:
+
+```bash
+pip install cellgenerator
+```
+
+No conda environment, no Java, no `mysql_config`, and no `CELLPROFILER_PYTHON`
+variable are needed.
 
 ---
 
-## Prerequisites
+## Feature categories extracted
 
-- [conda](https://docs.conda.io/en/latest/miniconda.html) or
-  [mamba](https://mamba.readthedocs.io/) installed
-- The `cellgenerator` repository cloned locally
+| Category | Examples |
+|---|---|
+| Size & shape | `Area`, `Perimeter`, `Eccentricity`, `Solidity`, … |
+| Zernike moments | `Zernike_0_0`, `Zernike_2_0`, … |
+| Feret diameters | `MinFeretDiameter`, `MaxFeretDiameter` |
+| Intensity | `Intensity_MeanIntensity`, `Intensity_StdIntensity`, … |
+| Texture (Haralick) | `AngularSecondMoment_3_00_256`, `Entropy_5_00_256`, … |
+| Granularity | `Granularity_1`, `Granularity_2`, … |
+| Radial distribution | `RadialDistribution_FracAtD_1of4`, … |
+| Radial Zernikes | `RadialDistribution_ZernikeMagnitude_0_0`, … |
 
----
-
-## 1. Create the environment
-
-From the repository root:
-
-```bash
-conda env create -f environment.yml
-```
-
-This installs CellProfiler ≥ 4.2 via conda-forge, which ships prebuilt binary
-wheels — no C compiler required.
-
-To update an existing environment after pulling changes:
-
-```bash
-conda env update -f environment.yml --prune
-```
+In total, `CellProfilerMeasurer` returns **~370 features** per measurement.
 
 ---
 
-## 2. Tell cellgenerator where to find it
+## Feature name differences from CellProfiler
 
-cellgenerator needs to know which Python interpreter has CellProfiler installed.
-There are three ways to provide this, in priority order:
+cp_measure feature names differ slightly from CellProfiler column names:
 
-### Option A — environment variable (recommended)
+| Category | cp_measure | CellProfiler |
+|---|---|---|
+| Shape | `Area` | `AreaShape_Area` |
+| Intensity | `Intensity_MeanIntensity` | `Intensity_MeanIntensity_DNA` |
+| Texture | `AngularSecondMoment_3_00_256` | `Texture_AngularSecondMoment_DNA_3_00_256` |
+| Granularity | `Granularity_1` | `Granularity_1_DNA` |
 
-Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
-
-```bash
-export CELLPROFILER_PYTHON="$HOME/miniconda3/envs/cg-cellprofiler/bin/python"
-```
-
-Adjust the path prefix (`miniconda3`, `anaconda3`, `/opt/conda`, etc.) to match
-your conda installation.  You can find the exact path with:
-
-```bash
-conda run -n cg-cellprofiler which python
-```
-
-### Option B — pass the path explicitly
-
-```python
-from cellgenerator.measure import CellProfilerMeasurer
-
-measurer = CellProfilerMeasurer(
-    python="/home/user/miniconda3/envs/cg-cellprofiler/bin/python"
-)
-```
-
-### Option C — auto-discovery (zero config)
-
-`CellProfilerMeasurer()` automatically searches for the `cg-cellprofiler` env
-in common conda locations:
-
-- `~/miniconda3/envs/cg-cellprofiler/bin/python`
-- `~/anaconda3/envs/cg-cellprofiler/bin/python`
-- `~/.conda/envs/cg-cellprofiler/bin/python`
-- `/opt/conda/envs/cg-cellprofiler/bin/python`
-
-If your conda is installed elsewhere, use Option A or B.
+A "good-enough" mapping between the two naming conventions is maintained in the
+[cp_measure schema](https://github.com/gwaybio/cp_measure/blob/main/schema/cellprofiler_mapping.json).
 
 ---
 
-## 3. Verify the setup
-
-```python
-from cellgenerator.measure import CellProfilerMeasurer
-
-measurer = CellProfilerMeasurer()
-print(measurer.python)   # prints the interpreter path
-```
-
-Or from the command line:
-
-```bash
-$CELLPROFILER_PYTHON cellgenerator/measure/_runner.py --check
-# → {"status": "ok", "cellprofiler": "4.2.8.1", "cellprofiler_core": "4.2.8.1"}
-```
-
----
-
-## 4. Extract features
+## Quick start
 
 ```python
 from cellgenerator import Image
@@ -106,7 +58,7 @@ from cellgenerator.mask import EllipseMask
 from cellgenerator.stain import SpatialStain
 from cellgenerator.measure import CellProfilerMeasurer
 
-# Build the synthetic cell
+# Build a synthetic cell
 img = Image(
     dim=(1000, 1000),
     mask=EllipseMask(y_radius=200, x_radius=400),
@@ -115,29 +67,12 @@ img = Image(
 
 measurer = CellProfilerMeasurer()
 
-# Single measurement
+# Single measurement → one-row DataFrame
 df = measurer.measure(img, dim=(200, 200), rotate=0.0)
-print(df.shape)          # (1, ~200+)
-print(df.columns[:10])
+print(df.shape)           # (1, ~370)
+print(df.columns[:10].tolist())
 
-# Full 360° sweep (36 angles × 10°)
+# 360° rotation sweep (36 angles × 10°)
 df_sweep = measurer.measure_sweep(img, dim=(200, 200))
-print(df_sweep.shape)    # (36, ~200+)
+print(df_sweep.shape)     # (36, ~370)
 ```
-
----
-
-## Troubleshooting
-
-**`CellProfilerNotFoundError`**
-: The `cg-cellprofiler` env was not found in any standard location and
-  `CELLPROFILER_PYTHON` is not set.  Run `conda run -n cg-cellprofiler which python`
-  and set `CELLPROFILER_PYTHON` to the output.
-
-**`conda: command not found`**
-: Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) first.
-
-**Module measurement errors** (warnings, not failures)
-: Some CellProfiler modules may print warnings to stderr — these are captured
-  and forwarded but do not abort the measurement.  Features from the failing
-  module are simply absent from the output DataFrame.

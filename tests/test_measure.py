@@ -1,12 +1,6 @@
 """Tests for the measure module.
 
-CellProfiler-dependent tests are skipped automatically when the
-``cg-cellprofiler`` conda environment is not configured.  The skip check
-uses the ``CELLPROFILER_PYTHON`` env var or the standard conda env paths
-that ``CellProfilerMeasurer`` itself searches.
-
-Tests that do NOT require CellProfiler (mask rendering, DataFrame shape
-contract, error path) run unconditionally.
+All tests run unconditionally — cp_measure is a regular dependency.
 """
 
 import numpy as np
@@ -16,7 +10,7 @@ from PIL import Image as PILImage
 
 from cellgenerator import Image
 from cellgenerator.mask import CircleMask, EllipseMask
-from cellgenerator.measure import CellProfilerMeasurer, CellProfilerNotFoundError
+from cellgenerator.measure import CellProfilerMeasurer
 from cellgenerator.stain import ConstantStain
 
 # ---------------------------------------------------------------------------
@@ -38,8 +32,13 @@ def ellipse_img():
     return Image(dim=(500, 500), mask=EllipseMask(150, 80), stain=ConstantStain())
 
 
+@pytest.fixture(scope="module")
+def measurer():
+    return CellProfilerMeasurer()
+
+
 # ---------------------------------------------------------------------------
-# get_mask_img — no CellProfiler needed
+# get_mask_img — no measurement needed
 # ---------------------------------------------------------------------------
 
 
@@ -74,13 +73,11 @@ class TestGetMaskImg:
         assert intensity[mask].mean() > intensity[~mask].mean()
 
     def test_rotation_changes_mask(self, ellipse_img):
-        """Rotating an ellipse should shift which pixels are foreground."""
         m0 = np.array(ellipse_img.get_mask_img(OUT_DIM, rotate=0))
         m90 = np.array(ellipse_img.get_mask_img(OUT_DIM, rotate=90))
         assert not np.array_equal(m0, m90)
 
     def test_rotation_preserves_pixel_count(self, circle_img):
-        """Circle mask pixel count should be stable under rotation."""
         counts = [
             np.array(circle_img.get_mask_img(OUT_DIM, rotate=float(a))).sum()
             for a in range(0, 360, 45)
@@ -115,18 +112,8 @@ class TestSaveMask:
 
 
 # ---------------------------------------------------------------------------
-# CellProfilerMeasurer — skip if env not available
+# CellProfilerMeasurer — always runs (cp_measure is a core dependency)
 # ---------------------------------------------------------------------------
-
-
-# This fixture attempts to build a measurer; if that raises
-# CellProfilerNotFoundError the entire test class is skipped.
-@pytest.fixture(scope="module")
-def measurer():
-    try:
-        return CellProfilerMeasurer()
-    except CellProfilerNotFoundError as exc:
-        pytest.skip(f"CellProfiler environment not configured: {exc}")
 
 
 class TestCellProfilerMeasurer:
@@ -145,23 +132,37 @@ class TestCellProfilerMeasurer:
 
     def test_measure_has_many_features(self, measurer, circle_img):
         df = measurer.measure(circle_img, dim=OUT_DIM)
-        # Expect at least 50 CellProfiler features beyond rotate_deg
-        assert df.shape[1] > 50
+        assert df.shape[1] > 100  # cp_measure returns 270+ features
 
-    def test_measure_area_shape_present(self, measurer, circle_img):
+    def test_measure_area_present(self, measurer, circle_img):
+        # cp_measure: "Area" not "AreaShape_Area"
         df = measurer.measure(circle_img, dim=OUT_DIM)
-        area_cols = [c for c in df.columns if "AreaShape" in c]
-        assert len(area_cols) > 0
+        assert "Area" in df.columns
+
+    def test_measure_eccentricity_present(self, measurer, circle_img):
+        df = measurer.measure(circle_img, dim=OUT_DIM)
+        assert "Eccentricity" in df.columns
 
     def test_measure_intensity_present(self, measurer, circle_img):
         df = measurer.measure(circle_img, dim=OUT_DIM)
-        intensity_cols = [c for c in df.columns if "Intensity" in c]
+        intensity_cols = [c for c in df.columns if c.startswith("Intensity_")]
         assert len(intensity_cols) > 0
 
     def test_measure_texture_present(self, measurer, circle_img):
+        # cp_measure: "AngularSecondMoment_3_00_256" (no "Texture_" prefix)
         df = measurer.measure(circle_img, dim=OUT_DIM)
-        texture_cols = [c for c in df.columns if "Texture" in c]
+        texture_cols = [c for c in df.columns if "AngularSecondMoment" in c]
         assert len(texture_cols) > 0
+
+    def test_measure_granularity_present(self, measurer, circle_img):
+        df = measurer.measure(circle_img, dim=OUT_DIM)
+        gran_cols = [c for c in df.columns if c.startswith("Granularity_")]
+        assert len(gran_cols) > 0
+
+    def test_measure_radial_present(self, measurer, circle_img):
+        df = measurer.measure(circle_img, dim=OUT_DIM)
+        radial_cols = [c for c in df.columns if c.startswith("RadialDistribution_")]
+        assert len(radial_cols) > 0
 
     def test_measure_all_numeric(self, measurer, circle_img):
         df = measurer.measure(circle_img, dim=OUT_DIM)
@@ -172,12 +173,10 @@ class TestCellProfilerMeasurer:
         ]
         assert non_numeric == []
 
-    def test_circle_area_shape_eccentricity_near_zero(self, measurer, circle_img):
+    def test_circle_eccentricity_near_zero(self, measurer, circle_img):
         """A circle should have eccentricity close to 0."""
         df = measurer.measure(circle_img, dim=OUT_DIM)
-        ecc_cols = [c for c in df.columns if "Eccentricity" in c]
-        if ecc_cols:
-            assert df[ecc_cols[0]].iloc[0] < 0.3
+        assert df["Eccentricity"].iloc[0] < 0.3
 
     def test_measure_sweep_returns_correct_rows(self, measurer, circle_img):
         angles = [0.0, 90.0, 180.0, 270.0]
@@ -185,18 +184,10 @@ class TestCellProfilerMeasurer:
         assert len(df) == len(angles)
         assert list(df["rotate_deg"]) == angles
 
-    def test_circle_features_stable_under_rotation(self, measurer, circle_img):
-        """Circle AreaShape features should be ~constant across rotations."""
+    def test_circle_area_stable_under_rotation(self, measurer, circle_img):
+        """Circle area should be ~constant across rotations."""
         df = measurer.measure_sweep(
             circle_img, dim=OUT_DIM, angles=[0.0, 45.0, 90.0, 135.0]
         )
-        area_col = next((c for c in df.columns if c == "AreaShape_Area"), None)
-        if area_col:
-            cv = df[area_col].std() / df[area_col].mean()
-            assert cv < 0.05, f"AreaShape_Area CV = {cv:.3f} (expected < 0.05)"
-
-
-class TestCellProfilerMeasurerErrors:
-    def test_bad_python_path_raises(self):
-        with pytest.raises(CellProfilerNotFoundError):
-            CellProfilerMeasurer(python="/nonexistent/python")
+        cv = df["Area"].std() / df["Area"].mean()
+        assert cv < 0.05, f"Area CV = {cv:.3f} (expected < 0.05)"

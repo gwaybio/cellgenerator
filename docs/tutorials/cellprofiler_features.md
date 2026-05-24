@@ -1,19 +1,15 @@
-# Tutorial: CellProfiler Features & Rotation Sensitivity
+# Tutorial: CellProfiler Features from Synthetic Cells
 
-This tutorial walks through the full `cellgenerator` workflow end-to-end:
+This tutorial walks through the core `cellgenerator` workflow:
 
-- Building synthetic cells with different shapes and staining patterns
-- Extracting CellProfiler morphological features via an isolated conda environment
-- Running a 360° rotation sweep to identify rotation-sensitive features
-- Quantifying sensitivity with the coefficient of variation (CV)
+- Generating a synthetic cell image with a controlled shape and staining pattern
+- Extracting CellProfiler-compatible morphological features with `cp_measure`
+- Inspecting the resulting feature table
 
-It is aimed at scientists familiar with image-based profiling who may not be
-familiar with CellProfiler's internals.
-
-> **CellProfiler environment required for Sections 4–7.**
-> Sections 1–3 (image generation and the rotation demo) run without any
-> additional setup.  See {doc}`/setup/cellprofiler` for instructions on
-> setting up the `cg-cellprofiler` conda environment.
+All features are computed via
+[cp_measure](https://github.com/afermg/cp_measure), which is installed
+automatically as a dependency — no CellProfiler installation or conda
+environment required.
 
 ```{toctree}
 :maxdepth: 1

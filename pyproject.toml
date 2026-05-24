@@ -31,6 +31,7 @@ dependencies = [
     "pillow>=10.0",
     "matplotlib>=3.7",
     "pandas>=2.0",
+    "cp-measure>=0.1.19",
 ]
 
 [project.urls]
