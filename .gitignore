@@ -6,6 +6,12 @@ sandbox/
 # Ruff
 .ruff_cache/
 
+# uv virtual environment
+.venv/
+
+# Sphinx build output
+docs/_build/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
