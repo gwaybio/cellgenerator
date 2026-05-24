@@ -145,6 +145,88 @@ class Image:
         pil_img = pil_img.resize(dim)
         return pil_img
 
+    def get_mask_img(self, dim: tuple[int, int], rotate: float = 0.0) -> PILImage.Image:
+        """Render the cell mask as a uint8 label image.
+
+        Returns the ground-truth segmentation mask at the requested output
+        resolution and rotation, using nearest-neighbour resampling to preserve
+        binary values.  Pixel values are ``0`` (background) or ``1`` (cell).
+
+        This is the "trivial segmentation" step — because the cell is synthetic
+        we already know exactly which pixels belong to it.  The returned image
+        can be passed directly to CellProfiler as a pre-computed object mask.
+
+        Parameters
+        ----------
+        dim : tuple[int, int]
+            Output image size as ``(width, height)`` in pixels.  Should match
+            the ``dim`` passed to :meth:`get_img` so the mask aligns with the
+            intensity image.
+        rotate : float, optional
+            Clockwise rotation in degrees, by default ``0.0``.  Must match the
+            ``rotate`` used when generating the corresponding intensity image.
+
+        Returns
+        -------
+        PIL.Image.Image
+            Grayscale (mode ``"L"``) image of size ``dim``; pixel values are
+            ``0`` (background) or ``1`` (cell object label).
+
+        Raises
+        ------
+        TypeError
+            If ``dim`` entries are not integers or ``rotate`` is not numeric.
+        ValueError
+            If ``dim`` does not have exactly two elements.
+
+        Examples
+        --------
+        >>> from cellgenerator import Image
+        >>> from cellgenerator.mask import CircleMask
+        >>> from cellgenerator.stain import ConstantStain
+        >>> img = Image(dim=(500, 500), mask=CircleMask(200), stain=ConstantStain())
+        >>> mask_img = img.get_mask_img(dim=(80, 80), rotate=45)
+        >>> import numpy as np
+        >>> arr = np.array(mask_img)
+        >>> set(arr.flat).issubset({0, 1})
+        True
+        """
+        if not isinstance(dim, tuple) or len(dim) != 2:
+            raise ValueError("dim must be a tuple of two integers")
+        if not all(isinstance(d, int) for d in dim):
+            raise TypeError("dim entries must be integers")
+
+        rotate = float(rotate)
+
+        # Convert boolean mask to uint8 label image: False→0, True→1
+        label = self._mask.astype(np.uint8)
+        pil_mask = PILImage.fromarray(label, mode="L")
+        # Nearest-neighbour keeps values binary through rotate + resize
+        pil_mask = pil_mask.rotate(rotate, resample=PILImage.Resampling.NEAREST)
+        pil_mask = pil_mask.resize(dim, resample=PILImage.Resampling.NEAREST)
+        return pil_mask
+
+    def save_mask(self, path: str, dim: tuple[int, int], rotate: float = 0.0) -> None:
+        """Save the cell mask label image to a PNG file.
+
+        Parameters
+        ----------
+        path : str
+            Destination file path (should end in ``.png``).
+        dim : tuple[int, int]
+            Output image size as ``(width, height)`` in pixels.
+        rotate : float, optional
+            Clockwise rotation in degrees, by default ``0.0``.
+
+        Raises
+        ------
+        ValueError
+            If ``path`` is not a string.
+        """
+        if not isinstance(path, str):
+            raise ValueError("path must be a string")
+        self.get_mask_img(dim, rotate).save(path, "PNG")
+
     def plot(self, dim: tuple[int, int], rotate: float = 0.0) -> None:
         """Display the cell image using matplotlib.
 

@@ -100,6 +100,14 @@ api/image
 api/mask
 api/stain
 api/noise
+api/measure
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Setup
+
+setup/cellprofiler
 ```
 
 ```{toctree}
