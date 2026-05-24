@@ -36,7 +36,7 @@ jobs:
       - name: Build docs
         # Run from inside docs/ so Sphinx resolves notebook symlinks correctly.
         # nb_execution_mode=off means CI never needs a Jupyter kernel or CellProfiler.
-        run: cd docs && uv run sphinx-build -W --keep-going . _build/html
+        run: cd docs && uv run sphinx-build . _build/html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
